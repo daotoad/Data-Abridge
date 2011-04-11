@@ -2,14 +2,12 @@
 use strict;
 use warnings;
 
-use lib '../../../../lib';
-
 use Test::More;
-use Data::Dumper;
+#use Data::Dumper;
 
 plan tests => (count_object_tests() + count_base_data_type_tests());
 
-use Next::OpenSIPS::AbridgeData qw( abridge_recursive abridge_item );
+use Data::Abridge qw( abridge_recursive abridge_item );
 use constant { ARG => 1, EXPECT => 2, TYPE => 0, REFEXPECT => 3, OBJECT => 4, OBJEXPECT => 4 };
 
 # Dummy sub to reference

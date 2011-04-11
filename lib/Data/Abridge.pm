@@ -1,4 +1,4 @@
-package Next::OpenSIPS::AbridgeData;
+package Data::Abridge;
 
 use strict;
 use warnings;
@@ -183,7 +183,7 @@ __END__
 
 =head1 NAME
 
-Next::OpenSIPS::AbridgeData
+Data::Abridge
 
 =head1 SYNOPSIS
 

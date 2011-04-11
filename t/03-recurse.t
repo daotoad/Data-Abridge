@@ -9,7 +9,7 @@ use Data::Dumper;
 
 plan tests => count_object_tests() + count_base_data_type_tests();
 
-use Next::OpenSIPS::AbridgeData qw( abridge_recursive abridge_item );
+use Data::Abridge qw( abridge_recursive abridge_item );
 use constant { ARG => 1, EXPECT => 2, TYPE => 0, REFEXPECT => 3, OBJECT => 4, OBJEXPECT => 4 };
 
 sub foo { 'foo' }
@@ -44,11 +44,15 @@ my @objects;
 
         push @objects, [ @$t, bless $t->[ARG], 'SomeClass' ] if ref $t->[ARG];
     }
+
+
+
 }
 
 #diag( 'Blessed types' );
 for my $o (@objects) {
     is_deeply( abridge_recursive($o->[OBJECT]), { 'SomeClass'=> $o->[EXPECT] }, "BLESSED $o->[TYPE] correct" );
+
         # print Dumper abridge_recursive(\$o->[OBJECT]);
 }
 
