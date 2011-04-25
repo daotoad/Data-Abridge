@@ -4,7 +4,7 @@ use strict;
 use warnings;
 
 use Exporter qw( import );
-use Scalar::Util qw( blessed reftype );
+use Scalar::Util qw( blessed reftype refaddr );
 
 use Carp;
 
@@ -47,6 +47,10 @@ my %RECURSE_DISPATCH = (
     ARRAY   => \&_recurse_array,
     BLESSED => \&_recurse_object,
 );
+
+our %SEEN;  # Global hash for tracking self-referential structures.
+            # Should be localized by entry to recursive abridge functions.
+our @KEY;
 
 sub _passthrough    { return $_ }
 sub _process_ref    { return { SCALAR => $$_ } }
@@ -121,7 +125,9 @@ sub _recurse_ref {
 
     my $val = $processed_ref->{SCALAR};
 
-    $processed_ref->{SCALAR} = abridge_recursive($val);
+    push @KEY, 'SCALAR';
+    $processed_ref->{SCALAR} = _abridge_recursive($val);
+    pop @KEY;
 
     return $processed_ref;
 }
@@ -129,7 +135,12 @@ sub _recurse_ref {
 sub _recurse_array {
     my $processed_array = shift;
 
-    my @result = abridge_items_recursive( @$processed_array );
+    my @result = map { 
+        push @KEY, $_;
+        my @a = _abridge_recursive($processed_array->[$_]);
+        pop @KEY, $_;
+        @a;
+    } 0 .. $#$processed_array;
 
     return \@result;
 }
@@ -138,10 +149,13 @@ sub _recurse_hash {
     my $processed_hash = shift;
 
     my %new_hash;
-    @new_hash{ keys %$processed_hash }
-        = abridge_items_recursive( values %$processed_hash );
+    for my $k ( keys %$processed_hash ) {
+        push @KEY, $k;
+        $new_hash{$k} = _abridge_recursive( $processed_hash->{$k} );
+        pop @KEY;
+    }
 
-    return $processed_hash;
+    return \%new_hash;
 }
 
 sub _recurse_object {
@@ -150,16 +164,27 @@ sub _recurse_object {
     my ( $key, $value ) = each %$processed_object;
     my $type = reftype $value // '';
 
+
+    push @KEY, $key;
+
     $value = $RECURSE_DISPATCH{$type}->( $value )
         if exists $RECURSE_DISPATCH{$type};
 
-    $processed_object->{$key} = $value;
+    pop @KEY;
 
-    return $processed_object;
+    my %new_obj = ( $key => $value );
+
+    return \%new_obj;
 }
 
 
 sub abridge_recursive {
+    local %SEEN;
+    local @KEY;
+    &_abridge_recursive;
+}
+
+sub _abridge_recursive {
     my $item = shift;
 
     my $type = reftype $item // '';
@@ -167,14 +192,27 @@ sub abridge_recursive {
 
     my $repl = abridge_item($item);
 
-    $repl = $RECURSE_DISPATCH{$type}->($repl)
-        if exists $RECURSE_DISPATCH{$type};
+    if ( exists $RECURSE_DISPATCH{$type} ) {
+        my $id = refaddr $item // '';
+
+            return { SEEN => [ @{$SEEN{$id}} ] }
+            if exists $SEEN{$id};
+
+        $SEEN{$id} =  [@KEY];
+        $repl = $RECURSE_DISPATCH{$type}->($repl);
+
+    }
 
     return $repl;
 }
 
-sub abridge_items_recursive { 
-    return map abridge_recursive($_), @_; 
+sub abridge_items_recursive {
+    local %SEEN;
+    &_abridge_items_recursive;
+}
+
+sub _abridge_items_recursive { 
+    return map _abridge_recursive($_), @_; 
 }
 
 1;
