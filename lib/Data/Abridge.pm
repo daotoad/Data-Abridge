@@ -8,6 +8,8 @@ use Scalar::Util qw( blessed reftype refaddr );
 
 use Carp;
 
+our $VERSION = 0.01;
+
 our @EXPORT_OK = qw(
     abridge_item      abridge_items
     abridge_recursive abridge_items_recursive
@@ -16,7 +18,7 @@ our @EXPORT_OK = qw(
 
 # Munge a thing for nice serialization
 
-# Object     -> { PACKAGE => 'Package::Name',  OBJECT => <unblessed copy> };
+# Object     -> {  'Package::Name' => <unblessed copy> };
 # Code Ref   -> '\&subname'
 #            -> '\&__ANON__'
 # Scalar Ref -> { SCALAR => $scalar }
@@ -50,7 +52,8 @@ my %RECURSE_DISPATCH = (
 
 our %SEEN;  # Global hash for tracking self-referential structures.
             # Should be localized by entry to recursive abridge functions.
-our @KEY;
+our @PATH;  # Also localized for tracking the current path to any given entry
+            # in the abridged structure.  
 
 sub _passthrough    { return $_ }
 sub _process_ref    { return { SCALAR => $$_ } }
@@ -101,7 +104,7 @@ sub _unsupported_type {
 }
 
 sub abridge_items {
-    return map abridge_item($_), @_;
+    return [ map abridge_item($_), @_ ];
 }
 
 sub abridge_item {
@@ -125,9 +128,9 @@ sub _recurse_ref {
 
     my $val = $processed_ref->{SCALAR};
 
-    push @KEY, 'SCALAR';
+    push @PATH, 'SCALAR';
     $processed_ref->{SCALAR} = _abridge_recursive($val);
-    pop @KEY;
+    pop @PATH;
 
     return $processed_ref;
 }
@@ -136,9 +139,9 @@ sub _recurse_array {
     my $processed_array = shift;
 
     my @result = map { 
-        push @KEY, $_;
+        push @PATH, $_;
         my @a = _abridge_recursive($processed_array->[$_]);
-        pop @KEY, $_;
+        pop @PATH;
         @a;
     } 0 .. $#$processed_array;
 
@@ -150,9 +153,9 @@ sub _recurse_hash {
 
     my %new_hash;
     for my $k ( keys %$processed_hash ) {
-        push @KEY, $k;
+        push @PATH, $k;
         $new_hash{$k} = _abridge_recursive( $processed_hash->{$k} );
-        pop @KEY;
+        pop @PATH;
     }
 
     return \%new_hash;
@@ -165,12 +168,12 @@ sub _recurse_object {
     my $type = reftype $value // '';
 
 
-    push @KEY, $key;
+    push @PATH, $key;
 
     $value = $RECURSE_DISPATCH{$type}->( $value )
         if exists $RECURSE_DISPATCH{$type};
 
-    pop @KEY;
+    pop @PATH;
 
     my %new_obj = ( $key => $value );
 
@@ -180,7 +183,7 @@ sub _recurse_object {
 
 sub abridge_recursive {
     local %SEEN;
-    local @KEY;
+    local @PATH;
     &_abridge_recursive;
 }
 
@@ -198,7 +201,7 @@ sub _abridge_recursive {
             return { SEEN => [ @{$SEEN{$id}} ] }
             if exists $SEEN{$id};
 
-        $SEEN{$id} =  [@KEY];
+        $SEEN{$id} =  [@PATH];
         $repl = $RECURSE_DISPATCH{$type}->($repl);
 
     }
@@ -212,7 +215,7 @@ sub abridge_items_recursive {
 }
 
 sub _abridge_items_recursive { 
-    return map _abridge_recursive($_), @_; 
+    return _abridge_recursive([@_]); 
 }
 
 1;
@@ -223,28 +226,33 @@ __END__
 
 Data::Abridge
 
+=head1 VERSION
+
+0.01
+
 =head1 SYNOPSIS
+
+    use Data::Abridge qw( abridge_recursive );
+    use JSON;
+
+    my $foo = bless { handle => \*STDIN }, 'SomeObj';
+
+    print encode_json abridge_recursive( $foo );
+
+=head1 DESCRIPTION
 
 Webster's 1913 edition defines abridge as follows:
 
   A*bridge" (#), v. t.
   1. To make shorter; to shorten in duration; to lessen; to diminish; to
   curtail; as, to abridge labor; to abridge power or rights. The bridegroom
-  . . . abridged his visit." Smollett.
-
-  She retired herself to Sebaste, and abridged her train from state to
-  necessity. Fuller.
-
-  2. To shorten or contract by using fewer words, yet retaining the sense;
-  to epitomize; to condense; as, to abridge a history or dictionary.
-
-  3. To deprive; to cut off; -- followed by of, and formerly by from; as,
-  to abridge one of his rights.
 
 This module exists to simplify the process of serializing data to formats, such as
 JSON, which do not support the full richness of perl datatypes.
 
 An abridged data structure will feature only scalars, hashes and arrays.
+
+This module does NOT guarantee round-trip capability.  Abridgement is a lossy process and some information may be lost.
 
 
 =head1 EXPORTED SYMBOLS
@@ -306,7 +314,7 @@ class and an unblessed copy of the object's underlying data type.
 Operates as abridge item, but applied to a list.
 
 Takes a list of arguments, applies C<abridge_item> to each, and then returns
-a list of the results.
+an array ref containing the results.
 
 =head2 abridge_recursive
 
@@ -314,13 +322,47 @@ Operates on a single data structure as per C<abridge_item>, but in a top-down re
 
 The data structure returned will consist of only abridged data.
 
+Recursive processing adds one more transformation type to the set described above:
+
+    Input              Output
+    ------------------------------------------
+    Any repeated item  {SEEN => [ 0, 'Path' ]}
+
+This means that any item that appears more than once in a data structure will be replaced with a pointer to the other location.  A hash ref with a single key "SEEN" and a value consisting of an array reference to indicate the path of keys and indexes that must be traversed to find the fully dumped instance.
+
+A reference to the top level data structure will yeild an empty C<[]> path.
+
+A reference to an element in an object or other special item will include the Data::Abridge generated keys in the path C<[ 2, 'SCALAR', 'SomeClass', 'that_attrib', 5 ]>.
+
 =head2 abridge_items_recursive
 
 Operates as C<abridge_recursive>, but applied to a list.
 
 Takes a list of arguments, applies C<abridge_recursive> to each, and then returns
-a list of the results.
+an array ref of the results.
 
+The top level item, in this case, is taken to be the array of items.
 
+=head1 SUPPORT
+
+Please file any bugs through the standard CPAN ticketing system.  At the time of writing this is L<http://rt.cpan.org>.
+
+=head1 LICENSE
+
+This module is licensed under the same terms as Perl.
+
+To be specific, you may choose to use it under any of the licensing terms available for Perl 5.6.0 or newer.
+
+=head1 AUTHOR
+
+Mark Swayne
+
+Copyright 2011
+
+=head1 ACKNOWLEDGEMENTS
+
+Thank you to Marchex L<http://marchex.com> for supporting the development and release of this module.
+
+Special thanks to Tye McQueen for the original idea and his readiness to kibbitz during the development process.
 
 =cut
