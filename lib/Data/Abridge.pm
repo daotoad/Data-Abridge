@@ -8,8 +8,6 @@ use Scalar::Util qw( blessed reftype refaddr );
 
 use Carp;
 
-our $VERSION = 0.01;
-
 our @EXPORT_OK = qw(
     abridge_item      abridge_items
     abridge_recursive abridge_items_recursive
@@ -220,15 +218,16 @@ sub _abridge_items_recursive {
 
 1;
 
+# ABSTRACT: Simplify data structures for naive serialization.
+
 __END__
 
 =head1 NAME
 
 Data::Abridge
 
-=head1 VERSION
+Simplify data structures for naive serialization.
 
-0.01
 
 =head1 SYNOPSIS
 
