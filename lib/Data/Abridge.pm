@@ -1,4 +1,7 @@
 package Data::Abridge;
+BEGIN {
+  $Data::Abridge::VERSION = '0.02';
+}
 
 use strict;
 use warnings;
@@ -225,6 +228,10 @@ __END__
 =head1 NAME
 
 Data::Abridge
+
+=head1 VERSION
+
+version 0.02
 
 Simplify data structures for naive serialization.
 
