@@ -1,6 +1,6 @@
 package Data::Abridge;
 BEGIN {
-  $Data::Abridge::VERSION = '0.02';
+  $Data::Abridge::VERSION = '0.02.01';
 }
 
 use strict;
@@ -117,10 +117,9 @@ sub abridge_item {
 
     $type = 'BLESSED' if blessed $item;
 
-    return "Unsupported type: '$type' for $item"
-        unless exists $SLOB_DISPATCH{$type};
+    my $slobd = $SLOB_DISPATCH{$type} // \&_unsupported_type;
 
-    return  $SLOB_DISPATCH{$type}->() for $item;
+    return  $slobd->($_) for $item;
 }
 
 
@@ -231,7 +230,7 @@ Data::Abridge
 
 =head1 VERSION
 
-version 0.02
+version 0.02.01
 
 Simplify data structures for naive serialization.
 

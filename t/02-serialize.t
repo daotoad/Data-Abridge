@@ -5,9 +5,9 @@ use warnings;
 use Test::More;
 #use Data::Dumper;
 
-plan tests => (count_object_tests() + count_base_data_type_tests());
+plan tests => (count_object_tests() + count_base_data_type_tests()) + 3;
 
-use Data::Abridge qw( abridge_recursive abridge_item );
+use Data::Abridge qw( abridge_recursive abridge_item abridge_items );
 use constant { ARG => 1, EXPECT => 2, TYPE => 0, REFEXPECT => 3, OBJECT => 4, OBJEXPECT => 4 };
 
 # Dummy sub to reference
@@ -49,4 +49,35 @@ diag( 'Blessed types' );
 for my $o (@objects) {
     is_deeply( abridge_item($o->[OBJECT]), { 'SomeClass'=> $o->[EXPECT] }, "BLESSED $o->[TYPE] correct" );
     #print Dumper abridge_item(\$o->[OBJECT]);
+}
+
+{
+    my $unsup = qr/foo/;
+    bless $unsup, 'WrongType';
+    my $abr = abridge_items($unsup);
+
+    is_deeply( $abr, [{ 'WrongType', "Unsupported type: 'REGEXP' for (?-xism:foo)" }] );
+}
+
+{
+    my $string = StringyObect->new('A String');
+    my $abr = abridge_items($string);
+
+    is_deeply( $abr, [ 'A String' ] );
+}
+
+{
+    my $code = \&abridge_item;
+    bless $code, 'CodeObj';
+    my $abr = abridge_items($code);
+
+    is_deeply( $abr, [ { CodeObj => { CODE => '\&Data::Abridge::abridge_item'  } } ] );
+}
+
+BEGIN {
+    package StringyObect;
+    use overload '""' => 'as_string';
+
+    sub new { shift; my $self = shift; bless \$self; }
+    sub as_string { my $self = shift;  "$$self"; }
 }
