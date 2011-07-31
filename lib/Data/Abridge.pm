@@ -41,6 +41,7 @@ my %COPY_DISPATCH = (
     ARRAY   => \&_process_array,
     GLOB    => \&_process_glob,
     CODE    => \&_process_code,
+    Regexp  => \&_process_regexp,
 );
 
 my %RECURSE_DISPATCH = (
@@ -75,7 +76,9 @@ sub _process_object {
     }
     else {
         # Shallow Copy
-        my $type = reftype $obj;
+        my $type = _is_Regexp( $obj )
+                 ? 'Regexp'
+                 : reftype $obj;
 
         my $value = exists $COPY_DISPATCH{$type}
                   ? $COPY_DISPATCH{$type}->()
@@ -102,6 +105,15 @@ sub _unsupported_type {
     my $type = reftype $item;
 
     return "Unsupported type: '$type' for $item";
+}
+
+sub _is_Regexp {
+    require B;
+    my $sv = B::svref_2object($_);
+    $sv->isa('B::PVMG') or return;
+    my $m = $sv->MAGIC or return;
+
+    return $m->TYPE eq 'r';
 }
 
 sub abridge_items {
