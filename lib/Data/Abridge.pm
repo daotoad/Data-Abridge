@@ -1,6 +1,6 @@
 package Data::Abridge;
 BEGIN {
-  $Data::Abridge::VERSION = '0.02.01';
+  $Data::Abridge::VERSION = '0.02.02';
 }
 
 use strict;
@@ -8,6 +8,7 @@ use warnings;
 
 use Exporter qw( import );
 use Scalar::Util qw( blessed reftype refaddr );
+use overload ();
 
 use Carp;
 
@@ -33,6 +34,7 @@ my %SLOB_DISPATCH = (
     GLOB    => \&_process_glob,
     CODE    => \&_process_code,
     BLESSED => \&_process_object,
+    Regexp  => \&_process_regexp,
 );
 
 my %COPY_DISPATCH = (
@@ -42,6 +44,7 @@ my %COPY_DISPATCH = (
     ARRAY   => \&_process_array,
     GLOB    => \&_process_glob,
     CODE    => \&_process_code,
+    Regexp  => \&_process_regexp,
 );
 
 my %RECURSE_DISPATCH = (
@@ -59,9 +62,10 @@ our @PATH;  # Also localized for tracking the current path to any given entry
 sub _passthrough    { return $_ }
 sub _process_ref    { return { SCALAR => $$_ } }
 sub _process_glob   { return { GLOB => '\\'.*$_ } }
-sub _process_scalar { return { SCALAR => $$_} }
 sub _process_hash   { return {%$_} }
 sub _process_array  { return [@$_] }
+sub _process_scalar { return { SCALAR => $$_} }
+sub _process_regexp { return { Regexp => "$_" } }
 
 sub _process_object {
     my $obj = $_;
@@ -75,7 +79,9 @@ sub _process_object {
     }
     else {
         # Shallow Copy
-        my $type = reftype $obj;
+        my $type = _is_Regexp( $obj )
+                 ? 'Regexp'
+                 : reftype $obj;
 
         my $value = exists $COPY_DISPATCH{$type}
                   ? $COPY_DISPATCH{$type}->()
@@ -104,6 +110,15 @@ sub _unsupported_type {
     return "Unsupported type: '$type' for $item";
 }
 
+sub _is_Regexp {
+    require B;
+    my $sv = B::svref_2object($_);
+    $sv->isa('B::PVMG') or return;
+    my $m = $sv->MAGIC or return;
+
+    return $m->TYPE eq 'r';
+}
+
 sub abridge_items {
     return [ map abridge_item($_), @_ ];
 }
@@ -115,9 +130,13 @@ sub abridge_item {
 
     return $item unless $type;
 
-    $type = 'BLESSED' if blessed $item;
+    my $blessed = blessed $item;
+    if( $blessed ) {
+        $type = $blessed eq 'Regexp' ? 'Regexp' : 'BLESSED';
+    }
 
-    my $slobd = $SLOB_DISPATCH{$type} // \&_unsupported_type;
+    my $slobd = $SLOB_DISPATCH{$type};
+   $slobd = \&_unsupported_type unless defined $slobd;;
 
     return  $slobd->($_) for $item;
 }
@@ -230,7 +249,7 @@ Data::Abridge
 
 =head1 VERSION
 
-version 0.02.01
+version 0.02.02
 
 Simplify data structures for naive serialization.
 

@@ -5,7 +5,7 @@ use warnings;
 use Test::More;
 #use Data::Dumper;
 
-plan tests => (count_object_tests() + count_base_data_type_tests()) + 3;
+plan tests => (count_object_tests() + count_base_data_type_tests()) + 4;
 
 use Data::Abridge qw( abridge_recursive abridge_item abridge_items );
 use constant { ARG => 1, EXPECT => 2, TYPE => 0, REFEXPECT => 3, OBJECT => 4, OBJEXPECT => 4 };
@@ -52,18 +52,25 @@ for my $o (@objects) {
 }
 
 {
-    my $unsup = qr/foo/;
-    bless $unsup, 'WrongType';
-    my $abr = abridge_items($unsup);
+    my $sup  = qr/foo/;
+    bless $sup, 'GoodThing';
+    my $abr = abridge_items($sup);
 
-    is_deeply( $abr, [{ 'WrongType', "Unsupported type: 'REGEXP' for (?-xism:foo)" }] );
+    is_deeply( $abr, [{GoodThing => { 'Regexp', "(?-xism:foo)" }} ], 'Blessed Regexp references handled' );
+}
+
+{
+    my $sup = qr/foo/;
+    my $abr = abridge_items($sup);
+
+    is_deeply( $abr, [{ 'Regexp', "(?-xism:foo)" }], 'Regexp references handled' );
 }
 
 {
     my $string = StringyObect->new('A String');
     my $abr = abridge_items($string);
 
-    is_deeply( $abr, [ 'A String' ] );
+    is_deeply( $abr, [ 'A String' ], 'Stringified objects convert' );
 }
 
 {

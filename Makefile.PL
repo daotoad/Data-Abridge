@@ -15,8 +15,7 @@ my %WriteMakefileArgs = (
     'Data::Dumper' => '0',
     'Storable' => '0',
     'Test::More' => '0',
-    'constant' => '0',
-    'overload' => '0'
+    'constant' => '0'
   },
   'CONFIGURE_REQUIRES' => {
     'ExtUtils::MakeMaker' => '6.30'
@@ -29,9 +28,10 @@ my %WriteMakefileArgs = (
     'B' => '0',
     'Carp' => '0',
     'Exporter' => '0',
-    'Scalar::Util' => '0'
+    'Scalar::Util' => '0',
+    'overload' => '0'
   },
-  'VERSION' => '0.02.01',
+  'VERSION' => '0.02.02',
   'test' => {
     'TESTS' => 't/*.t'
   }
