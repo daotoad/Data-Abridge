@@ -52,11 +52,10 @@ for my $o (@objects) {
 }
 
 {
-    my $unsup = qr/foo/;
-    bless $unsup, 'WrongType';
-    my $abr = abridge_items($unsup);
+    my $sup = qr/foo/;
+    my $abr = abridge_items($sup);
 
-    is_deeply( $abr, [{ 'WrongType', "Unsupported type: 'REGEXP' for (?-xism:foo)" }] );
+    is_deeply( $abr, [{ 'Regexp', "(?-xism:foo)" }] );
 }
 
 {

@@ -5,6 +5,7 @@ use warnings;
 
 use Exporter qw( import );
 use Scalar::Util qw( blessed reftype refaddr );
+use overload ();
 
 use Carp;
 
@@ -30,6 +31,7 @@ my %SLOB_DISPATCH = (
     GLOB    => \&_process_glob,
     CODE    => \&_process_code,
     BLESSED => \&_process_object,
+    Regexp  => \&_process_regexp,
 );
 
 my %COPY_DISPATCH = (
@@ -56,9 +58,10 @@ our @PATH;  # Also localized for tracking the current path to any given entry
 sub _passthrough    { return $_ }
 sub _process_ref    { return { SCALAR => $$_ } }
 sub _process_glob   { return { GLOB => '\\'.*$_ } }
-sub _process_scalar { return { SCALAR => $$_} }
 sub _process_hash   { return {%$_} }
 sub _process_array  { return [@$_] }
+sub _process_scalar { return { SCALAR => $$_} }
+sub _process_regexp { return { Regexp => "$_" } }
 
 sub _process_object {
     my $obj = $_;
@@ -112,9 +115,13 @@ sub abridge_item {
 
     return $item unless $type;
 
-    $type = 'BLESSED' if blessed $item;
+    my $blessed = blessed $item;
+    if( $blessed ) {
+        $type = $blessed eq 'Regexp' ? 'Regexp' : 'BLESSED';
+    }
 
-    my $slobd = $SLOB_DISPATCH{$type} // \&_unsupported_type;
+    my $slobd = $SLOB_DISPATCH{$type};
+   $slobd = \&_unsupported_type unless defined $slobd;;
 
     return  $slobd->($_) for $item;
 }
