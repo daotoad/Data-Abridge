@@ -80,7 +80,7 @@ sub _process_object {
     else {
         # Shallow Copy
         my $type = _is_Regexp( $obj )
-                 ? 'Regexp'
+                 ? 'REGEXP'
                  : reftype $obj;
 
         my $value = exists $COPY_DISPATCH{$type}
