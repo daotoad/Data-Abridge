@@ -1,6 +1,6 @@
 package Data::Abridge;
 BEGIN {
-  $Data::Abridge::VERSION = '0.02.02';
+  $Data::Abridge::VERSION = '0.02.03';
 }
 
 use strict;
@@ -18,6 +18,9 @@ our @EXPORT_OK = qw(
 );
 
 
+use constant BLESSED_REGEXP => blessed qr/foo/;
+use constant REFTYPE_REGEXP => reftype qr/foo/;
+
 # Munge a thing for nice serialization
 
 # Object     -> {  'Package::Name' => <unblessed copy> };
@@ -34,7 +37,7 @@ my %SLOB_DISPATCH = (
     GLOB    => \&_process_glob,
     CODE    => \&_process_code,
     BLESSED => \&_process_object,
-    Regexp  => \&_process_regexp,
+    REGEXP  => \&_process_regexp,
 );
 
 my %COPY_DISPATCH = (
@@ -44,7 +47,7 @@ my %COPY_DISPATCH = (
     ARRAY   => \&_process_array,
     GLOB    => \&_process_glob,
     CODE    => \&_process_code,
-    Regexp  => \&_process_regexp,
+    REGEXP  => \&_process_regexp,
 );
 
 my %RECURSE_DISPATCH = (
@@ -80,7 +83,7 @@ sub _process_object {
     else {
         # Shallow Copy
         my $type = _is_Regexp( $obj )
-                 ? 'Regexp'
+                 ? 'REGEXP'
                  : reftype $obj;
 
         my $value = exists $COPY_DISPATCH{$type}
@@ -132,7 +135,7 @@ sub abridge_item {
 
     my $blessed = blessed $item;
     if( $blessed ) {
-        $type = $blessed eq 'Regexp' ? 'Regexp' : 'BLESSED';
+        $type = $blessed eq BLESSED_REGEXP ? 'REGEXP' : 'BLESSED';
     }
 
     my $slobd = $SLOB_DISPATCH{$type};
@@ -182,6 +185,9 @@ sub _recurse_hash {
 
 sub _recurse_object {
     my $processed_object = shift;
+
+    return unless ref $processed_object;
+    return unless reftype $processed_object eq 'HASH';
 
     my ( $key, $value ) = each %$processed_object;
     my $type = reftype $value // '';
@@ -249,7 +255,7 @@ Data::Abridge
 
 =head1 VERSION
 
-version 0.02.02
+version 0.02.03
 
 Simplify data structures for naive serialization.
 
