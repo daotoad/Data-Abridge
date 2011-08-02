@@ -183,6 +183,9 @@ sub _recurse_hash {
 sub _recurse_object {
     my $processed_object = shift;
 
+    return unless ref $processed_object;
+    return unless reftype $processed_object eq 'HASH';
+
     my ( $key, $value ) = each %$processed_object;
     my $type = reftype $value // '';
 
