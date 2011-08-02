@@ -15,6 +15,9 @@ our @EXPORT_OK = qw(
 );
 
 
+use constant BLESSED_REGEXP => blessed qr/foo/;
+use constant REFTYPE_REGEXP => reftype qr/foo/;
+
 # Munge a thing for nice serialization
 
 # Object     -> {  'Package::Name' => <unblessed copy> };
@@ -31,7 +34,7 @@ my %SLOB_DISPATCH = (
     GLOB    => \&_process_glob,
     CODE    => \&_process_code,
     BLESSED => \&_process_object,
-    Regexp  => \&_process_regexp,
+    REGEXP  => \&_process_regexp,
 );
 
 my %COPY_DISPATCH = (
@@ -41,7 +44,7 @@ my %COPY_DISPATCH = (
     ARRAY   => \&_process_array,
     GLOB    => \&_process_glob,
     CODE    => \&_process_code,
-    Regexp  => \&_process_regexp,
+    REGEXP  => \&_process_regexp,
 );
 
 my %RECURSE_DISPATCH = (
@@ -129,7 +132,7 @@ sub abridge_item {
 
     my $blessed = blessed $item;
     if( $blessed ) {
-        $type = $blessed eq 'Regexp' ? 'Regexp' : 'BLESSED';
+        $type = $blessed eq BLESSED_REGEXP ? 'REGEXP' : 'BLESSED';
     }
 
     my $slobd = $SLOB_DISPATCH{$type};
