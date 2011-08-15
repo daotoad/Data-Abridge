@@ -187,7 +187,8 @@ sub _recurse_object {
     return unless reftype $processed_object eq 'HASH';
 
     my ( $key, $value ) = each %$processed_object;
-    my $type = reftype $value // '';
+    my $type = reftype $value;
+    $type = '' unless defined $type;
 
 
     push @PATH, $key;
@@ -212,13 +213,15 @@ sub abridge_recursive {
 sub _abridge_recursive {
     my $item = shift;
 
-    my $type = reftype $item // '';
+    my $type = reftype $item;
     $type = 'BLESSED' if blessed $item;
+    $type = '' unless defined $type;
 
     my $repl = abridge_item($item);
 
     if ( exists $RECURSE_DISPATCH{$type} ) {
-        my $id = refaddr $item // '';
+        my $id = refaddr $item;
+        $id = '' unless defined $id;
 
             return { SEEN => [ @{$SEEN{$id}} ] }
             if exists $SEEN{$id};
