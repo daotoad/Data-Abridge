@@ -21,4 +21,4 @@ requires:
   Scalar::Util: 0
   constant: 0
   overload: 0
-version: 0.02.03
+version: 0.03.00

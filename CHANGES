@@ -1,0 +1,5 @@
+00.03.00 - September 9, 2012
+    * Removed distzilla from build process.
+    * Fixed bug in recursive serialization of stringified objects.
+    * Added control for handling overloaded serialization.
+    * Fixed tests to handle changes to regexp serialization after Perl 5.12

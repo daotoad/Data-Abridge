@@ -1,6 +1,6 @@
 package Data::Abridge;
 BEGIN {
-  $Data::Abridge::VERSION = '0.02.03';
+  $Data::Abridge::VERSION = '0.03.00';
 }
 
 use strict;
@@ -262,7 +262,7 @@ Data::Abridge
 
 =head1 VERSION
 
-version 0.02.03
+version 0.03.00
 
 Simplify data structures for naive serialization.
 
