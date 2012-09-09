@@ -5,9 +5,9 @@ use warnings;
 use Test::More;
 #use Data::Dumper;
 
-plan tests => (count_object_tests() + count_base_data_type_tests()) + 4;
+plan tests => (count_object_tests() + count_base_data_type_tests()) + 7;
 
-use Data::Abridge qw( abridge_recursive abridge_item abridge_items );
+use Data::Abridge qw( abridge_recursive abridge_item abridge_items abridge_items_recursive );
 use constant { ARG => 1, EXPECT => 2, TYPE => 0, REFEXPECT => 3, OBJECT => 4, OBJEXPECT => 4 };
 
 # Dummy sub to reference
@@ -56,14 +56,28 @@ for my $o (@objects) {
     bless $sup, 'GoodThing';
     my $abr = abridge_items($sup);
 
-    is_deeply( $abr, [{GoodThing => { 'Regexp', "(?-xism:foo)" }} ], 'Blessed Regexp references handled' );
+    is_deeply( $abr,
+            [{GoodThing => {
+                    'Regexp',
+                    $] > 5.013 ? "(?^:foo)"
+                               : "(?-xism:foo)"
+                },
+            }],
+            'Blessed Regexp references handled'
+        );
 }
 
 {
     my $sup = qr/foo/;
     my $abr = abridge_items($sup);
 
-    is_deeply( $abr, [{ 'Regexp', "(?-xism:foo)" }], 'Regexp references handled' );
+    is_deeply( $abr,
+            [{  'Regexp',
+                $] > 5.013 ? "(?^:foo)"
+                           : "(?-xism:foo)"
+            }],
+            'Regexp references handled'
+        );
 }
 
 {
@@ -71,6 +85,29 @@ for my $o (@objects) {
     my $abr = abridge_items($string);
 
     is_deeply( $abr, [ 'A String' ], 'Stringified objects convert' );
+}
+
+{
+    my $string = StringyObect->new('A String');
+    my $abr = abridge_items_recursive($string);
+
+    is_deeply( $abr, [ 'A String' ], 'Stringified objects convert recursively' );
+}
+
+{
+    local $Data::Abridge::HONOR_STRINGIFY=1;
+    my $string = StringyObect->new('A String');
+    my $abr = abridge_items_recursive($string);
+
+    is_deeply( $abr, [ 'A String' ], 'Stringified objects convert recursively' );
+}
+
+{
+    local $Data::Abridge::HONOR_STRINGIFY=undef;
+    my $string = StringyObect->new('A String');
+    my $abr = abridge_items_recursive($string);
+
+    is_deeply( $abr, [ { StringyObect => { SCALAR => 'A String' } } ], 'Stringified objects convert recursively' );
 }
 
 {
