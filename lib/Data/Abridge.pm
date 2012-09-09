@@ -1,4 +1,7 @@
 package Data::Abridge;
+BEGIN {
+  $Data::Abridge::VERSION = '0.03.00';
+}
 
 use strict;
 use warnings;
@@ -54,6 +57,8 @@ my %RECURSE_DISPATCH = (
     BLESSED => \&_recurse_object,
 );
 
+our $HONOR_STRINGIFY = 1;
+
 our %SEEN;  # Global hash for tracking self-referential structures.
             # Should be localized by entry to recursive abridge functions.
 our @PATH;  # Also localized for tracking the current path to any given entry
@@ -73,7 +78,7 @@ sub _process_object {
     my $class = blessed $obj;
     return unless defined $class;
 
-    if( overload::Method($obj, '""') ) {
+    if( $HONOR_STRINGIFY && overload::Method($obj, '""') ) {
         # overloads String ?
         return "$obj";
     }
@@ -219,6 +224,11 @@ sub _abridge_recursive {
 
     my $repl = abridge_item($item);
 
+    # repl may have become a plain old scalar.
+    # Can't recurse that.
+    my $repl_type = reftype $repl;
+    return $repl unless defined $repl_type;
+
     if ( exists $RECURSE_DISPATCH{$type} ) {
         my $id = refaddr $item;
         $id = '' unless defined $id;
@@ -253,6 +263,10 @@ __END__
 
 Data::Abridge
 
+=head1 VERSION
+
+version 0.03.00
+
 Simplify data structures for naive serialization.
 
 
@@ -262,6 +276,10 @@ Simplify data structures for naive serialization.
     use JSON;
 
     my $foo = bless { handle => \*STDIN }, 'SomeObj';
+
+    print encode_json abridge_recursive( $foo );
+
+    local $DATA::Abridge::HONOR_STRINGIFY = undef;
 
     print encode_json abridge_recursive( $foo );
 
@@ -335,6 +353,19 @@ class and an unblessed copy of the object's underlying data type.
     bless {a=>'b'}, 'Foo' { Foo => {a=>'b'} }
     bless [1,2,3], 'Foo'  { Foo => [1,2,3]  }
 
+Objects that override stringification will be treated as strings,
+by default.
+
+    Given:
+      package Foo;
+      use overload '""' => sub { join ' ', keys %$_[0] };
+
+    Input                 Output              Condition
+    ----------------------------------------------------
+    bless {a=>'b'}, 'Foo' 'a'                 Default
+    bless {a=>'b'}, 'Foo' { Foo => {a=>'b'} } $HONOR_STRINGIFY = undef
+    bless {a=>'b'}, 'Foo' 'a'                 $HONOR_STRINGIFY = 1
+
 =head2 abridge_items
 
 Operates as abridge item, but applied to a list.
@@ -383,7 +414,7 @@ To be specific, you may choose to use it under any of the licensing terms availa
 
 Mark Swayne
 
-Copyright 2011
+Copyright 2012
 
 =head1 ACKNOWLEDGEMENTS
 
